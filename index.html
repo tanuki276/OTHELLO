@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>オセロ</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>オセロ</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="/manifest.json" />
 </head>
 <body>
   <h1>オセロ</h1>
@@ -16,8 +18,8 @@
       <option value="strong">強い</option>
     </select>
   </div>
-  <div id="status"></div>
-  <div id="score"></div>
+  <div id="status">ゲームを開始してください</div>
+  <div id="score">黒: 2 - 白: 2</div>
   <button onclick="resetGame()">リセット</button>
 
   <script src="script.js"></script>
