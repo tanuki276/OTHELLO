@@ -5,7 +5,7 @@ let botStrength = 'normal';
 
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
-const cellSize = canvas.width / BOARD_SIZE;
+const cellSize = canvas.width / BOARD_SIZE; // 600 / 8 = 75px
 
 const statusElem = document.getElementById('status');
 const scoreElem = document.getElementById('score');
@@ -52,6 +52,7 @@ function drawBoard() {
       ctx.fillStyle = '#004d00';
       ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       ctx.strokeStyle = '#002200';
+      ctx.lineWidth = 3; // 線太く
       ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
 
       // 石描画
@@ -61,12 +62,13 @@ function drawBoard() {
         ctx.arc(
           x * cellSize + cellSize / 2,
           y * cellSize + cellSize / 2,
-          cellSize / 2 - 6,
+          cellSize / 2 - 10, // 石の半径大きめ
           0,
           Math.PI * 2
         );
         ctx.fillStyle = stone === 'B' ? 'black' : 'white';
         ctx.fill();
+        ctx.lineWidth = 3;
         ctx.strokeStyle = 'black';
         ctx.stroke();
       }
