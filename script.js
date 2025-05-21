@@ -1,8 +1,12 @@
-// script.js - オセロ全体ロジック（ミニマックス搭載）
+// script.js
 
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const BOARD_SIZE = 8;
+
+canvas.width = 750;
+canvas.height = 750;
+
 const CELL_SIZE = canvas.width / BOARD_SIZE;
 
 const botStrengthSelect = document.getElementById('botStrength');
@@ -68,7 +72,7 @@ const directions = [
   [-1,1],  [0,1],  [1,1]
 ];
 
-// 指定マスに置けるか判定（実際には裏返せる石があるか）
+// 指定マスに置けるか判定
 function canPutStone(x, y, player, boardCheck = board) {
   if(boardCheck[y][x] !== 0) return false;
   const opponent = player === 1 ? 2 : 1;
@@ -98,7 +102,7 @@ function hasAnyValidMove(player, boardCheck = board) {
   return false;
 }
 
-// 石を置き、裏返す（boardは参照渡し）
+// 石を置き、裏返す
 function putStone(x, y, player, boardPut = board) {
   boardPut[y][x] = player;
   const opponent = player === 1 ? 2 : 1;
