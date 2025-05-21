@@ -1,7 +1,8 @@
 const BOARD_SIZE = 8;
-const CELL_SIZE = 50;
+const CELL_SIZE = 600 / BOARD_SIZE;
 let board = [];
 let currentPlayer = 'B'; // B=黒(先手), W=白(AI)
+let aiDifficulty = 'medium';
 
 function initBoard() {
   board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
@@ -34,12 +35,12 @@ function drawBoard() {
         ctx.beginPath();
         const cx = x*CELL_SIZE + CELL_SIZE/2;
         const cy = y*CELL_SIZE + CELL_SIZE/2;
-        const radius = CELL_SIZE/2 - 5;
+        const radius = CELL_SIZE/2 - 10;
         ctx.fillStyle = board[y][x] === 'B' ? 'black' : 'white';
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetX = 3;
+        ctx.shadowOffsetY = 3;
         ctx.arc(cx, cy, radius, 0, Math.PI*2);
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -147,6 +148,8 @@ function countStones() {
 
 const statusDiv = document.getElementById('status');
 const scoreDiv = document.getElementById('score');
+const aiDifficultySelect = document.getElementById('aiDifficulty');
+const restartBtn = document.getElementById('restartBtn');
 
 function updateStatus() {
   if (isGameOver()) {
@@ -183,11 +186,75 @@ function aiMove() {
     return;
   }
 
-  const move = moves[Math.floor(Math.random() * moves.length)];
+  let move;
+  if (aiDifficulty === 'easy') {
+    // ランダムに選ぶだけ
+    move = moves[Math.floor(Math.random() * moves.length)];
+  } else if (aiDifficulty === 'medium') {
+    // 取れる石が多い手を選ぶ
+    let maxFlips = -1;
+    for (const m of moves) {
+      const flips = countFlips(m.x, m.y, currentPlayer);
+      if (flips > maxFlips) {
+        maxFlips = flips;
+        move = m;
+      }
+    }
+  } else if (aiDifficulty === 'hard') {
+    // 最大手+角優先でちょっとだけ強化（簡易版）
+    let bestScore = -1;
+    for (const m of moves) {
+      let score = countFlips(m.x, m.y, currentPlayer);
+      // 角マスなら超優先
+      if (isCorner(m.x, m.y)) score += 1000;
+      if (score > bestScore) {
+        bestScore = score;
+        move = m;
+      }
+    }
+  }
+
   placeStone(move.x, move.y, currentPlayer);
   switchPlayer();
   drawBoard();
   updateStatus();
+}
+
+function countFlips(x, y, player) {
+  // 指定した場所に置いたときにひっくり返せる石の数を数える
+  const opponent = player === 'B' ? 'W' : 'B';
+  const directions = [
+    [-1, -1], [0, -1], [1, -1],
+    [-1, 0],           [1, 0],
+    [-1, 1],  [0, 1],  [1, 1]
+  ];
+
+  let totalFlips = 0;
+
+  for (let [dx, dy] of directions) {
+    let nx = x + dx;
+    let ny = y + dy;
+    let flips = 0;
+
+    while (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
+      if (board[ny][nx] === opponent) {
+        flips++;
+      } else if (board[ny][nx] === player) {
+        totalFlips += flips;
+        break;
+      } else {
+        break;
+      }
+      nx += dx;
+      ny += dy;
+    }
+  }
+  return totalFlips;
+}
+
+function isCorner(x, y) {
+  return (x === 0 && y === 0) || (x === 0 && y === BOARD_SIZE-1) ||
+         (x === BOARD_SIZE-1 && y === 0) || (x === BOARD_SIZE-1 && y === BOARD_SIZE-1);
 }
 
 canvas.addEventListener('click', (e) => {
@@ -213,17 +280,4 @@ canvas.addEventListener('click', (e) => {
   }
 
   setTimeout(() => {
-    aiMove();
-    if (isGameOver()) {
-      alert('ゲーム終了！');
-    }
-  }, 500);
-});
-
-function startGame() {
-  initBoard();
-  drawBoard();
-  updateStatus();
-}
-
-startGame();
+    aiMove
