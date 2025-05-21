@@ -1,28 +1,30 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>リバーシ</title>
+  <meta charset="UTF-8" />
+  <title>オセロ</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16" type="image/png" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>リバーシ（オセロ）</h1>
+  <h1>オセロ</h1>
 
-  <!-- 強さ選択 -->
-  <label for="strength">CPUの強さ: </label>
-  <select id="strength">
-    <option value="weak">弱い</option>
-    <option value="normal" selected>普通</option>
-    <option value="strong">強い</option>
-  </select>
+  <div>
+    <label>強さ: 
+      <select id="strengthSelect">
+        <option value="weak">よわい</option>
+        <option value="normal" selected>ふつう</option>
+        <option value="strong">つよい</option>
+      </select>
+    </label>
+  </div>
 
-  <!-- ゲーム盤面 -->
-  <canvas id="board" width="600" height="600"></canvas>
+  <canvas id="board" width="480" height="480"></canvas>
 
-  <!-- ステータス表示 -->
   <div id="status"></div>
   <div id="score"></div>
 
-  <!-- 外部JS -->
   <script src="script.js"></script>
 </body>
 </html>
