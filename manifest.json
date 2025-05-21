@@ -1,7 +1,7 @@
 {
   "name": "オセロ",
   "short_name": "オセロ",
-  "start_url": "./index.html",
+  "start_url": "https://othello-five-sable.vercel.app/",
   "display": "standalone",
   "background_color": "#1e2a1e",
   "theme_color": "#004d00",
