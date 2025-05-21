@@ -4,15 +4,56 @@
   <meta charset="UTF-8" />
   <title>オセロ</title>
   <style>
-    body { font-family: sans-serif; text-align: center; }
-    #board { background: #0a5; cursor: pointer; }
-    #status, #score { margin-top: 10px; font-weight: bold; }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #eef9ee;
+      padding: 20px;
+    }
+    #board {
+      background: #0a5;
+      cursor: pointer;
+      border: 3px solid #064;
+      margin-top: 10px;
+      box-shadow: 3px 3px 8px rgba(0,0,0,0.3);
+    }
+    #status, #score {
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 20px;
+    }
+    #controls {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    select, button {
+      font-size: 18px;
+      padding: 6px 12px;
+      margin-left: 10px;
+      border-radius: 6px;
+      border: 1px solid #068;
+      background: #cdf0cd;
+      cursor: pointer;
+    }
+    button:hover, select:hover {
+      background: #b0e3b0;
+    }
   </style>
 </head>
 <body>
   <h1>オセロ</h1>
 
-  <canvas id="board" width="400" height="400"></canvas>
+  <div id="controls">
+    強さ：
+    <select id="aiDifficulty">
+      <option value="easy">かんたん</option>
+      <option value="medium" selected>ふつう</option>
+      <option value="hard">むずかしい</option>
+    </select>
+    <button id="restartBtn">リスタート</button>
+  </div>
+
+  <canvas id="board" width="600" height="600"></canvas>
   <div id="status"></div>
   <div id="score"></div>
 
