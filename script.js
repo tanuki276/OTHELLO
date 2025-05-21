@@ -264,7 +264,6 @@ function updateStatus(text) {
 canvas.addEventListener('click', (e) => {
   if(currentPlayer !== 1) return; // 人間のターンのみ受付
 
-  const rect = 
 canvas.addEventListener("touchstart", function (event) {
   event.preventDefault();
 
