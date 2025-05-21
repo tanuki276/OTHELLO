@@ -314,6 +314,5 @@ function resetGame() {
 window.onload = () => {
   resetGame();
 };
-
 initBoard();
 drawBoard();
