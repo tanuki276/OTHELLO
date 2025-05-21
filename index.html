@@ -3,42 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <title>オセロ</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16" type="image/png" />
-  <link rel="stylesheet" href="style.css" />
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-    }
-    #board {
-      border: 2px solid #000;
-      margin: 10px auto;
-      display: block;
-      cursor: pointer;
-      background-color: #008000;
-    }
-    #status, #score {
-      margin-top: 10px;
-      font-size: 1.2em;
-    }
+    body { font-family: sans-serif; text-align: center; }
+    #board { background: #0a5; cursor: pointer; }
+    #status, #score { margin-top: 10px; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>オセロ</h1>
 
-  <div>
-    <label>強さ: 
-      <select id="strengthSelect">
-        <option value="weak">よわい</option>
-        <option value="normal" selected>ふつう</option>
-        <option value="strong">つよい</option>
-      </select>
-    </label>
-  </div>
-
   <canvas id="board" width="400" height="400"></canvas>
-
   <div id="status"></div>
   <div id="score"></div>
 
