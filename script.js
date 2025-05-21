@@ -1,240 +1,157 @@
 const BOARD_SIZE = 8;
-let board = [];
-let currentPlayer = 'B'; // B:黒（プレイヤー）、W:白（ボット）
-let botStrength = 'normal';
-
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
-const cellSize = canvas.width / BOARD_SIZE; // 600 / 8 = 75px
 
-const statusElem = document.getElementById('status');
-const scoreElem = document.getElementById('score');
-const botStrengthSelect = document.getElementById('botStrength');
+let board = [];
+let currentPlayer = 1; // 1: 黒, 2: 白
+let cellSize;
 
-botStrengthSelect.addEventListener('change', () => {
-  botStrength = botStrengthSelect.value;
-  resetGame();
-});
-
-canvas.addEventListener('click', e => {
-  if (currentPlayer !== 'B') return; // プレイヤーターンのみ受付
-  const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / cellSize);
-  const y = Math.floor((e.clientY - rect.top) / cellSize);
-  if (isValidMove(x, y, currentPlayer)) {
-    placeStone(x, y, currentPlayer);
-    nextTurn();
-  }
-});
-
-function resetGame() {
-  board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
+function initBoard() {
+  board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(0));
   // 初期配置
-  board[3][3] = 'W';
-  board[3][4] = 'B';
-  board[4][3] = 'B';
-  board[4][4] = 'W';
-  currentPlayer = 'B';
-  drawBoard();
-  updateStatus();
-  if (currentPlayer === 'W') {
-    setTimeout(botMove, 500);
-  }
+  board[3][3] = 2;
+  board[3][4] = 1;
+  board[4][3] = 1;
+  board[4][4] = 2;
 }
 
 function drawBoard() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 盤面描画
+  // ボード背景
+  ctx.fillStyle = '#0a7d00';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // グリッド線
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 2;
+  for (let i = 0; i <= BOARD_SIZE; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * cellSize, 0);
+    ctx.lineTo(i * cellSize, cellSize * BOARD_SIZE);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, i * cellSize);
+    ctx.lineTo(cellSize * BOARD_SIZE, i * cellSize);
+    ctx.stroke();
+  }
+
+  // 石の描画
   for (let y = 0; y < BOARD_SIZE; y++) {
     for (let x = 0; x < BOARD_SIZE; x++) {
-      // マス
-      ctx.fillStyle = '#004d00';
-      ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-      ctx.strokeStyle = '#002200';
-      ctx.lineWidth = 3; // 線太く
-      ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-      // 石描画
-      const stone = board[y][x];
-      if (stone) {
-        ctx.beginPath();
-        ctx.arc(
-          x * cellSize + cellSize / 2,
-          y * cellSize + cellSize / 2,
-          cellSize / 2 - 10, // 石の半径大きめ
-          0,
-          Math.PI * 2
-        );
-        ctx.fillStyle = stone === 'B' ? 'black' : 'white';
-        ctx.fill();
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = 'black';
-        ctx.stroke();
+      if (board[y][x] !== 0) {
+        drawStone(x, y, board[y][x]);
       }
     }
   }
 }
 
-function isValidMove(x, y, player) {
-  if (board[y][x] !== null) return false;
-  return getFlippedStones(x, y, player).length > 0;
+function drawStone(x, y, player) {
+  const centerX = x * cellSize + cellSize / 2;
+  const centerY = y * cellSize + cellSize / 2;
+  const radius = cellSize * 0.4;
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+  ctx.fillStyle = player === 1 ? 'black' : 'white';
+  ctx.fill();
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
-// 指定の位置に石を置き、ひっくり返す
-function placeStone(x, y, player) {
-  const flipped = getFlippedStones(x, y, player);
-  if (flipped.length === 0) return false;
+function canPutStone(x, y, player) {
+  if (board[y][x] !== 0) return false;
 
-  board[y][x] = player;
-  flipped.forEach(([fx, fy]) => {
-    board[fy][fx] = player;
-  });
-  drawBoard();
-  return true;
-}
-
-// ひっくり返せる石の位置リストを取得
-function getFlippedStones(x, y, player) {
-  if (board[y][x] !== null) return [];
-
-  const opponent = player === 'B' ? 'W' : 'B';
+  // 8方向のチェック
   const directions = [
     [-1, -1], [0, -1], [1, -1],
     [-1,  0],          [1,  0],
     [-1,  1], [0,  1], [1,  1],
   ];
-  let flipped = [];
 
   for (const [dx, dy] of directions) {
-    let nx = x + dx;
-    let ny = y + dy;
-    let stonesToFlip = [];
+    let nx = x + dx, ny = y + dy;
+    let hasOpponentBetween = false;
 
     while (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
-      if (board[ny][nx] === opponent) {
-        stonesToFlip.push([nx, ny]);
-      } else if (board[ny][nx] === player) {
-        if (stonesToFlip.length > 0) {
-          flipped = flipped.concat(stonesToFlip);
-        }
-        break;
-      } else {
-        break;
+      if (board[ny][nx] === 0) break;
+      if (board[ny][nx] === player) {
+        if (hasOpponentBetween) return true;
+        else break;
       }
+      hasOpponentBetween = true;
       nx += dx;
       ny += dy;
     }
   }
-  return flipped;
+  return false;
 }
 
-function getValidMoves(player) {
-  let moves = [];
-  for (let y = 0; y < BOARD_SIZE; y++) {
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      if (isValidMove(x, y, player)) {
-        moves.push([x, y]);
-      }
-    }
-  }
-  return moves;
-}
+function putStone(x, y, player) {
+  if (!canPutStone(x, y, player)) return false;
 
-function nextTurn() {
-  currentPlayer = currentPlayer === 'B' ? 'W' : 'B';
-  updateStatus();
+  board[y][x] = player;
 
-  // パス判定
-  if (getValidMoves(currentPlayer).length === 0) {
-    // 両者とも置ける場所がなければ終了
-    if (getValidMoves(currentPlayer === 'B' ? 'W' : 'B').length === 0) {
-      showResult();
-      return;
-    } else {
-      // パスしてターン戻す
-      statusElem.textContent += '  (パス)';
-      currentPlayer = currentPlayer === 'B' ? 'W' : 'B';
-      updateStatus();
-    }
-  }
+  // 石をひっくり返す
+  const directions = [
+    [-1, -1], [0, -1], [1, -1],
+    [-1,  0],          [1,  0],
+    [-1,  1], [0,  1], [1,  1],
+  ];
 
-  drawBoard();
+  for (const [dx, dy] of directions) {
+    let nx = x + dx, ny = y + dy;
+    let stonesToFlip = [];
 
-  if (currentPlayer === 'W') {
-    setTimeout(botMove, 600);
-  }
-}
-
-function botMove() {
-  const moves = getValidMoves('W');
-  if (moves.length === 0) {
-    nextTurn();
-    return;
-  }
-
-  let move;
-
-  if (botStrength === 'weak') {
-    move = moves[Math.floor(Math.random() * moves.length)];
-  } else if (botStrength === 'normal') {
-    // 最も多くひっくり返せる手を選択
-    let maxFlip = -1;
-    for (const [x, y] of moves) {
-      const flipped = getFlippedStones(x, y, 'W').length;
-      if (flipped > maxFlip) {
-        maxFlip = flipped;
-        move = [x, y];
-      }
-    }
-  } else if (botStrength === 'strong') {
-    // 強い（簡易的に一番角を優先）
-    const corners = [[0,0],[0,7],[7,0],[7,7]];
-    move = moves.find(([x,y]) => corners.some(([cx,cy]) => cx === x && cy === y));
-    if (!move) {
-      // なければ普通の手を選ぶ
-      let maxFlip = -1;
-      for (const [x, y] of moves) {
-        const flipped = getFlippedStones(x, y, 'W').length;
-        if (flipped > maxFlip) {
-          maxFlip = flipped;
-          move = [x, y];
+    while (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
+      if (board[ny][nx] === 0) break;
+      if (board[ny][nx] === player) {
+        for (const [fx, fy] of stonesToFlip) {
+          board[fy][fx] = player;
         }
+        break;
       }
+      stonesToFlip.push([nx, ny]);
+      nx += dx;
+      ny += dy;
     }
   }
+  return true;
+}
 
-  if (move) {
-    placeStone(move[0], move[1], 'W');
+function nextPlayer() {
+  currentPlayer = currentPlayer === 1 ? 2 : 1;
+}
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / cellSize);
+  const y = Math.floor((e.clientY - rect.top) / cellSize);
+
+  if (putStone(x, y, currentPlayer)) {
+    nextPlayer();
+    drawBoard();
   }
-  nextTurn();
+});
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.min(window.innerWidth * 0.9, 600);
+  canvas.style.width = width + 'px';
+  canvas.width = width * dpr;
+  canvas.height = width * dpr;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+
+  cellSize = width / BOARD_SIZE;
+  drawBoard();
 }
 
-function updateStatus() {
-  statusElem.textContent = `現在のターン: ${currentPlayer === 'B' ? '黒（あなた）' : '白（ボット）'}`;
-  updateScore();
-}
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', resizeCanvas);
 
-function updateScore() {
-  let black = 0, white = 0;
-  for (let row of board) {
-    for (let cell of row) {
-      if (cell === 'B') black++;
-      else if (cell === 'W') white++;
-    }
-  }
-  scoreElem.textContent = `黒: ${black}  白: ${white}`;
-}
-
-function showResult() {
-  updateScore();
-  const black = board.flat().filter(c => c === 'B').length;
-  const white = board.flat().filter(c => c === 'W').length;
-  let result;
-  if (black > white) result = 'あなたの勝ち！';
-  else if (white > black) result = 'ボットの勝ち！';
-  else result = '引き分けです。';
-  statusElem.textContent = `ゲーム終了！ ${result}`;
-}
-
-resetGame();
+initBoard();
+resizeCanvas();
