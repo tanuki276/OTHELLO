@@ -264,26 +264,23 @@ function updateStatus(text) {
 canvas.addEventListener('click', (e) => {
   if(currentPlayer !== 1) return; // 人間のターンのみ受付
 
+  const rect = 
+canvas.addEventListener("touchstart", function (event) {
+  event.preventDefault();
+
+  const rect = 
+canvas.addEventListener("touchstart", function (event) {
+  event.preventDefault();
+
+  if (currentPlayer !== 1) return; // 人間のターンのみ受付
+
   const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
-  const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
+  const touch = event.touches[0];
 
-  if(canPutStone(x, y, 1)) {
-    putStone(x, y, 1);
-    drawBoard();
-    updateScore();
+  const x = Math.floor((touch.clientX - rect.left) / (rect.width / BOARD_SIZE));
+  const y = Math.floor((touch.clientY - rect.top) / (rect.height / BOARD_SIZE));
 
-    if(hasAnyValidMove(2)) {
-      currentPlayer = 2;
-      updateStatus('Botの番（白）');
-      setTimeout(botMove, 300); // 少し遅延させて思考感を演出
-    } else if(hasAnyValidMove(1)) {
-      currentPlayer = 1;
-      updateStatus('あなたの番（黒） - Botはパスしました');
-    } else {
-      gameOver();
-    }
-  }
+  handleClick(x, y);
 });
 
 // ゲームリセット
@@ -294,5 +291,7 @@ function resetGame() {
   updateScore();
   drawBoard();
 }
+
+resetGame();
 
 resetGame();
