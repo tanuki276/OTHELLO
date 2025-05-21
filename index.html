@@ -1,30 +1,34 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>オセロ</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16" type="image/png" />
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>オセロ</title>
 </head>
 <body>
   <h1>オセロ</h1>
-
+  <canvas id="board" width="400" height="400"></canvas>
   <div>
-    <label>強さ: 
-      <select id="strengthSelect">
-        <option value="weak">よわい</option>
-        <option value="normal" selected>ふつう</option>
-        <option value="strong">つよい</option>
-      </select>
-    </label>
+    難易度:
+    <select id="botStrength">
+      <option value="weak">弱い</option>
+      <option value="normal" selected>普通</option>
+      <option value="strong">強い</option>
+    </select>
   </div>
-
-  <canvas id="board" width="480" height="480"></canvas>
-
   <div id="status"></div>
   <div id="score"></div>
+  <button onclick="resetGame()">リセット</button>
 
   <script src="script.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(() => {
+        console.log('Service Worker 登録成功');
+      }).catch(err => {
+        console.error('Service Worker 登録失敗:', err);
+      });
+    }
+  </script>
 </body>
 </html>
