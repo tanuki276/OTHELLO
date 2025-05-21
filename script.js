@@ -1,26 +1,7 @@
-// --- サービスワーカー登録 ---
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-      console.log('Service Worker registered:', reg.scope);
-    }).catch(err => {
-      console.error('Service Worker registration failed:', err);
-    });
-  });
-}
-
-// --- オセロゲームロジックと描画 ---
-
 const BOARD_SIZE = 8;
-const canvas = document.getElementById('board');
-const ctx = canvas.getContext('2d');
-const CELL_SIZE = canvas.width / BOARD_SIZE;
-
+const CELL_SIZE = 50;
 let board = [];
-let currentPlayer = 'B'; // 黒スタート
-
-const statusDiv = document.getElementById('status');
-const scoreDiv = document.getElementById('score');
+let currentPlayer = 'B'; // B=黒(先手), W=白(AI)
 
 function initBoard() {
   board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
@@ -30,37 +11,38 @@ function initBoard() {
   board[4][4] = 'W';
 }
 
-function drawBoard() {
-  // 背景（緑）
-  ctx.fillStyle = '#008000';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
 
-  // マス目
-  ctx.strokeStyle = '#000000';
-  for(let i = 0; i <= BOARD_SIZE; i++) {
+function drawBoard() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#000';
+  for(let i=0; i<=BOARD_SIZE; i++) {
     ctx.beginPath();
-    ctx.moveTo(0, i * CELL_SIZE);
-    ctx.lineTo(canvas.width, i * CELL_SIZE);
+    ctx.moveTo(i*CELL_SIZE, 0);
+    ctx.lineTo(i*CELL_SIZE, BOARD_SIZE*CELL_SIZE);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(i * CELL_SIZE, 0);
-    ctx.lineTo(i * CELL_SIZE, canvas.height);
+    ctx.moveTo(0, i*CELL_SIZE);
+    ctx.lineTo(BOARD_SIZE*CELL_SIZE, i*CELL_SIZE);
     ctx.stroke();
   }
-
-  // 石描画
   for(let y=0; y<BOARD_SIZE; y++) {
     for(let x=0; x<BOARD_SIZE; x++) {
-      if (board[y][x] === 'B' || board[y][x] === 'W') {
+      if (board[y][x]) {
         ctx.beginPath();
-        const cx = x * CELL_SIZE + CELL_SIZE / 2;
-        const cy = y * CELL_SIZE + CELL_SIZE / 2;
-        const radius = CELL_SIZE / 2 - 5;
-        ctx.arc(cx, cy, radius, 0, Math.PI*2);
+        const cx = x*CELL_SIZE + CELL_SIZE/2;
+        const cy = y*CELL_SIZE + CELL_SIZE/2;
+        const radius = CELL_SIZE/2 - 5;
         ctx.fillStyle = board[y][x] === 'B' ? 'black' : 'white';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.arc(cx, cy, radius, 0, Math.PI*2);
         ctx.fill();
-        ctx.stroke();
+        ctx.shadowBlur = 0;
       }
     }
   }
@@ -76,7 +58,7 @@ function isValidMove(x, y, player) {
     [-1, 1],  [0, 1],  [1, 1]
   ];
 
-  for (const [dx, dy] of directions) {
+  for (let [dx, dy] of directions) {
     let nx = x + dx;
     let ny = y + dy;
     let foundOpponent = false;
@@ -94,6 +76,7 @@ function isValidMove(x, y, player) {
       ny += dy;
     }
   }
+
   return false;
 }
 
@@ -109,7 +92,7 @@ function placeStone(x, y, player) {
     [-1, 1],  [0, 1],  [1, 1]
   ];
 
-  for (const [dx, dy] of directions) {
+  for (let [dx, dy] of directions) {
     let stonesToFlip = [];
     let nx = x + dx;
     let ny = y + dy;
@@ -118,7 +101,7 @@ function placeStone(x, y, player) {
       if (board[ny][nx] === opponent) {
         stonesToFlip.push([nx, ny]);
       } else if (board[ny][nx] === player) {
-        for (const [fx, fy] of stonesToFlip) {
+        for (let [fx, fy] of stonesToFlip) {
           board[fy][fx] = player;
         }
         break;
@@ -129,6 +112,7 @@ function placeStone(x, y, player) {
       ny += dy;
     }
   }
+
   return true;
 }
 
@@ -161,64 +145,85 @@ function countStones() {
   return {black, white};
 }
 
+const statusDiv = document.getElementById('status');
+const scoreDiv = document.getElementById('score');
+
 function updateStatus() {
-  const scores = countStones();
-  scoreDiv.textContent = `黒: ${scores.black} 白: ${scores.white}`;
-
   if (isGameOver()) {
-    let winner = '引き分け';
-    if (scores.black > scores.white) winner = '黒の勝ち！';
-    else if (scores.white > scores.black) winner = '白の勝ち！';
-    statusDiv.textContent = `ゲーム終了！ ${winner}`;
+    const scores = countStones();
+    let result = '';
+    if (scores.black > scores.white) result = '黒の勝ち！';
+    else if (scores.white > scores.black) result = '白の勝ち！';
+    else result = '引き分け！';
+
+    statusDiv.textContent = 'ゲーム終了！結果: ' + result;
   } else {
-    statusDiv.textContent = `${currentPlayer === 'B' ? '黒' : '白'}の番`;
+    statusDiv.textContent = `現在の手番: ${currentPlayer === 'B' ? '黒（あなた）' : '白（AI）'}`;
   }
+  const scores = countStones();
+  scoreDiv.textContent = `黒: ${scores.black}  白: ${scores.white}`;
 }
 
-// クリック座標から盤面座標へ変換
-function getBoardCoords(mouseX, mouseY) {
+function aiMove() {
+  if (isGameOver()) return;
+
+  const moves = [];
+  for(let y=0; y<BOARD_SIZE; y++) {
+    for(let x=0; x<BOARD_SIZE; x++) {
+      if (isValidMove(x, y, currentPlayer)) {
+        moves.push({x, y});
+      }
+    }
+  }
+
+  if (moves.length === 0) {
+    switchPlayer();
+    updateStatus();
+    alert('AIは置ける場所がありません。あなたの手番に戻ります。');
+    return;
+  }
+
+  const move = moves[Math.floor(Math.random() * moves.length)];
+  placeStone(move.x, move.y, currentPlayer);
+  switchPlayer();
+  drawBoard();
+  updateStatus();
+}
+
+canvas.addEventListener('click', (e) => {
+  if (currentPlayer !== 'B') {
+    alert('今はあなたの手番ではありません。');
+    return;
+  }
   const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((mouseX - rect.left) / CELL_SIZE);
-  const y = Math.floor((mouseY - rect.top) / CELL_SIZE);
-  return {x, y};
-}
+  const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
+  const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
 
-function playerMove(x, y) {
   if (!placeStone(x, y, currentPlayer)) {
     alert('そこには置けません！');
     return;
   }
   switchPlayer();
-
-  if (!hasValidMoves(currentPlayer)) {
-    switchPlayer();
-    if (!hasValidMoves(currentPlayer)) {
-      updateStatus();
-      alert('ゲーム終了！');
-      return;
-    } else {
-      alert(`${currentPlayer === 'B' ? '黒' : '白'}は置ける場所がありません。パスします。`);
-    }
-  }
   drawBoard();
   updateStatus();
-}
 
-// 初期化＆開始
+  if (isGameOver()) {
+    alert('ゲーム終了！');
+    return;
+  }
+
+  setTimeout(() => {
+    aiMove();
+    if (isGameOver()) {
+      alert('ゲーム終了！');
+    }
+  }, 500);
+});
+
 function startGame() {
   initBoard();
   drawBoard();
   updateStatus();
 }
-
-// canvasクリックイベント
-canvas.addEventListener('click', e => {
-  if (isGameOver()) {
-    alert('ゲームは終了しています。リロードしてください。');
-    return;
-  }
-  const {x, y} = getBoardCoords(e.clientX, e.clientY);
-  playerMove(x, y);
-});
 
 startGame();
