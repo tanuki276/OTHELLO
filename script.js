@@ -260,5 +260,10 @@ function botTurn() {
   if(result.move) {
     placeStone(result.move.x, result.move.y, WHITE, board);
   }
+  drawBoard();
+
+  if(!nextTurn()) return; // ゲーム終了
+}
+
 initBoard();
 drawBoard();
