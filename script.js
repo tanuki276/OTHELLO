@@ -1,291 +1,269 @@
-// script.js
-
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
+
 const BOARD_SIZE = 8;
-
-canvas.width = 810;
-canvas.height = 810;
-
+const style = window.getComputedStyle(canvas);
+canvas.width = parseInt(style.getPropertyValue('width'), 10);
+canvas.height = parseInt(style.getPropertyValue('height'), 10);
 const CELL_SIZE = canvas.width / BOARD_SIZE;
 
-const botStrengthSelect = document.getElementById('botStrength');
-const statusDiv = document.getElementById('status');
-const scoreDiv = document.getElementById('score');
+const EMPTY = 0;
+const BLACK = 1; // プレイヤー（黒）
+const WHITE = 2; // Bot（白）
 
 let board = [];
-let currentPlayer = 1; // 1=黒(人間), 2=白(Bot)
+let currentPlayer = BLACK; // 黒からスタート
 
+// 盤面初期化
 function initBoard() {
-  board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
-  // 初期4石配置
-  board[3][3] = 2;
-  board[3][4] = 1;
-  board[4][3] = 1;
-  board[4][4] = 2;
+  board = [];
+  for(let y = 0; y < BOARD_SIZE; y++) {
+    board[y] = [];
+    for(let x = 0; x < BOARD_SIZE; x++) {
+      board[y][x] = EMPTY;
+    }
+  }
+  // 初期4つの石
+  board[3][3] = WHITE;
+  board[3][4] = BLACK;
+  board[4][3] = BLACK;
+  board[4][4] = WHITE;
 }
 
+// 方向ベクトル（8方向）
+const directions = [
+  [-1,-1], [-1,0], [-1,1],
+  [0,-1],         [0,1],
+  [1,-1],  [1,0], [1,1]
+];
+
+// 盤面内かチェック
+function inBoard(x, y) {
+  return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
+}
+
+// 指定の位置に石が置けるかチェック（合法手判定）
+function canPlace(x, y, player, boardState) {
+  if(boardState[y][x] !== EMPTY) return false;
+
+  const opponent = (player === BLACK) ? WHITE : BLACK;
+
+  for(let [dx, dy] of directions) {
+    let nx = x + dx;
+    let ny = y + dy;
+    let hasOpponentBetween = false;
+
+    while(inBoard(nx, ny) && boardState[ny][nx] === opponent) {
+      nx += dx;
+      ny += dy;
+      hasOpponentBetween = true;
+    }
+
+    if(hasOpponentBetween && inBoard(nx, ny) && boardState[ny][nx] === player) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// 全合法手取得
+function getValidMoves(player, boardState) {
+  let moves = [];
+  for(let y=0; y<BOARD_SIZE; y++) {
+    for(let x=0; x<BOARD_SIZE; x++) {
+      if(canPlace(x, y, player, boardState)) {
+        moves.push({x, y});
+      }
+    }
+  }
+  return moves;
+}
+
+// 石を置いて裏返す処理（戻り値は裏返した石の座標配列）
+function placeStone(x, y, player, boardState) {
+  let flipped = [];
+  boardState[y][x] = player;
+  const opponent = (player === BLACK) ? WHITE : BLACK;
+
+  for(let [dx, dy] of directions) {
+    let nx = x + dx;
+    let ny = y + dy;
+    let stonesToFlip = [];
+
+    while(inBoard(nx, ny) && boardState[ny][nx] === opponent) {
+      stonesToFlip.push({x: nx, y: ny});
+      nx += dx;
+      ny += dy;
+    }
+
+    if(stonesToFlip.length > 0 && inBoard(nx, ny) && boardState[ny][nx] === player) {
+      flipped = flipped.concat(stonesToFlip);
+    }
+  }
+
+  for(let pos of flipped) {
+    boardState[pos.y][pos.x] = player;
+  }
+
+  return flipped;
+}
+
+// ボードのコピー（深コピー）
+function copyBoard(boardState) {
+  return boardState.map(row => row.slice());
+}
+
+// 評価関数（石の差）
+function evaluateBoard(boardState) {
+  let blackCount = 0;
+  let whiteCount = 0;
+  for(let y=0; y<BOARD_SIZE; y++) {
+    for(let x=0; x<BOARD_SIZE; x++) {
+      if(boardState[y][x] === BLACK) blackCount++;
+      else if(boardState[y][x] === WHITE) whiteCount++;
+    }
+  }
+  return whiteCount - blackCount; // Bot（白）が有利ならプラス
+}
+
+// ミニマックス + αβ法（深さlimit）
+// playerは現在の手番、isMaxはBotの手番ならtrue、人間ならfalse
+function minimax(boardState, depth, maxDepth, player, alpha, beta) {
+  const opponent = (player === BLACK) ? WHITE : BLACK;
+  const validMoves = getValidMoves(player, boardState);
+
+  if(depth === maxDepth || validMoves.length === 0) {
+    return {score: evaluateBoard(boardState)};
+  }
+
+  if(player === WHITE) { // Bot (maximizer)
+    let maxEval = -Infinity;
+    let bestMove = null;
+    for(let move of validMoves) {
+      let newBoard = copyBoard(boardState);
+      placeStone(move.x, move.y, player, newBoard);
+      let evalRes = minimax(newBoard, depth+1, maxDepth, opponent, alpha, beta);
+      if(evalRes.score > maxEval) {
+        maxEval = evalRes.score;
+        bestMove = move;
+      }
+      alpha = Math.max(alpha, evalRes.score);
+      if(beta <= alpha) break; // βカット
+    }
+    return {score: maxEval, move: bestMove};
+  } else { // プレイヤー（minimizer）
+    let minEval = Infinity;
+    let bestMove = null;
+    for(let move of validMoves) {
+      let newBoard = copyBoard(boardState);
+      placeStone(move.x, move.y, player, newBoard);
+      let evalRes = minimax(newBoard, depth+1, maxDepth, opponent, alpha, beta);
+      if(evalRes.score < minEval) {
+        minEval = evalRes.score;
+        bestMove = move;
+      }
+      beta = Math.min(beta, evalRes.score);
+      if(beta <= alpha) break; // αカット
+    }
+    return {score: minEval, move: bestMove};
+  }
+}
+
+// 盤面描画
 function drawBoard() {
+  // 背景
   ctx.fillStyle = '#006400';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#003000';
+
+  // 線を描く
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
   for(let i=0; i<=BOARD_SIZE; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i*CELL_SIZE, 0);
-    ctx.lineTo(i*CELL_SIZE, canvas.height);
-    ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(0, i*CELL_SIZE);
     ctx.lineTo(canvas.width, i*CELL_SIZE);
     ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(i*CELL_SIZE, 0);
+    ctx.lineTo(i*CELL_SIZE, canvas.height);
+    ctx.stroke();
   }
 
+  // 石を描画
   for(let y=0; y<BOARD_SIZE; y++) {
     for(let x=0; x<BOARD_SIZE; x++) {
-      if(board[y][x] !== 0) {
-        drawStone(x, y, board[y][x]);
+      if(board[y][x] === EMPTY) continue;
+
+      ctx.beginPath();
+      const cx = x * CELL_SIZE + CELL_SIZE/2;
+      const cy = y * CELL_SIZE + CELL_SIZE/2;
+      const radius = CELL_SIZE/2 - 5;
+      ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+
+      if(board[y][x] === BLACK) {
+        ctx.fillStyle = '#000';
+      } else {
+        ctx.fillStyle = '#fff';
       }
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.stroke();
     }
   }
 }
 
-function drawStone(x, y, player) {
-  ctx.beginPath();
-  ctx.arc(x*CELL_SIZE + CELL_SIZE/2, y*CELL_SIZE + CELL_SIZE/2, CELL_SIZE/2 - 5, 0, Math.PI*2);
-  ctx.fillStyle = player === 1 ? 'black' : 'white';
-  ctx.fill();
-  ctx.strokeStyle = 'black';
-  ctx.stroke();
-}
-
-function isOnBoard(x, y) {
-  return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
-}
-
-const directions = [
-  [-1,-1], [0,-1], [1,-1],
-  [-1,0],          [1,0],
-  [-1,1],  [0,1],  [1,1]
-];
-
-// 指定マスに置けるか判定
-function canPutStone(x, y, player, boardCheck = board) {
-  if(boardCheck[y][x] !== 0) return false;
-  const opponent = player === 1 ? 2 : 1;
-  for(const [dx, dy] of directions) {
-    let nx = x + dx;
-    let ny = y + dy;
-    let foundOpponent = false;
-    while(isOnBoard(nx, ny) && boardCheck[ny][nx] === opponent) {
-      nx += dx;
-      ny += dy;
-      foundOpponent = true;
-    }
-    if(foundOpponent && isOnBoard(nx, ny) && boardCheck[ny][nx] === player) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// 指定プレイヤーの合法手があるか
-function hasAnyValidMove(player, boardCheck = board) {
-  for(let y=0; y<BOARD_SIZE; y++) {
-    for(let x=0; x<BOARD_SIZE; x++) {
-      if(canPutStone(x, y, player, boardCheck)) return true;
-    }
-  }
-  return false;
-}
-
-// 石を置き、裏返す
-function putStone(x, y, player, boardPut = board) {
-  boardPut[y][x] = player;
-  const opponent = player === 1 ? 2 : 1;
-  for(const [dx, dy] of directions) {
-    let nx = x + dx;
-    let ny = y + dy;
-    const stonesToFlip = [];
-    while(isOnBoard(nx, ny) && boardPut[ny][nx] === opponent) {
-      stonesToFlip.push([nx, ny]);
-      nx += dx;
-      ny += dy;
-    }
-    if(isOnBoard(nx, ny) && boardPut[ny][nx] === player) {
-      for(const [fx, fy] of stonesToFlip) {
-        boardPut[fy][fx] = player;
-      }
-    }
-  }
-}
-
-// スコアカウント
-function countStones(boardCount = board) {
-  let black = 0, white = 0;
-  for(let y=0; y<BOARD_SIZE; y++) {
-    for(let x=0; x<BOARD_SIZE; x++) {
-      if(boardCount[y][x] === 1) black++;
-      else if(boardCount[y][x] === 2) white++;
-    }
-  }
-  return { black, white };
-}
-
-// 評価関数（bot=白=2の視点）
-function evaluateBoard(boardEval) {
-  const counts = countStones(boardEval);
-  return counts.white - counts.black;
-}
-
-// ミニマックス＋αβカット
-function minimax(boardMinimax, player, depth, maxDepth, alpha, beta) {
-  if(depth === maxDepth || (!hasAnyValidMove(1, boardMinimax) && !hasAnyValidMove(2, boardMinimax))) {
-    return evaluateBoard(boardMinimax);
-  }
-
-  const opponent = player === 1 ? 2 : 1;
-
-  const moves = [];
-  for(let y=0; y<BOARD_SIZE; y++) {
-    for(let x=0; x<BOARD_SIZE; x++) {
-      if(canPutStone(x, y, player, boardMinimax)) {
-        moves.push([x,y]);
-      }
-    }
-  }
-
-  if(moves.length === 0) {
+// ターン終了チェックと交代処理
+function nextTurn() {
+  currentPlayer = (currentPlayer === BLACK) ? WHITE : BLACK;
+  if(getValidMoves(currentPlayer, board).length === 0) {
     // パス
-    return minimax(boardMinimax, opponent, depth + 1, maxDepth, alpha, beta);
-  }
-
-  if(player === 2) { // Botはmaxプレイヤー
-    let maxEval = -Infinity;
-    for(const [x,y] of moves) {
-      const newBoard = boardMinimax.map(row => row.slice());
-      putStone(x, y, player, newBoard);
-      const evalScore = minimax(newBoard, opponent, depth + 1, maxDepth, alpha, beta);
-      if(evalScore > maxEval) maxEval = evalScore;
-      if(evalScore > alpha) alpha = evalScore;
-      if(beta <= alpha) break; // αβカット
-    }
-    return maxEval;
-  } else { // 人間はminプレイヤー
-    let minEval = Infinity;
-    for(const [x,y] of moves) {
-      const newBoard = boardMinimax.map(row => row.slice());
-      putStone(x, y, player, newBoard);
-      const evalScore = minimax(newBoard, opponent, depth + 1, maxDepth, alpha, beta);
-      if(evalScore < minEval) minEval = evalScore;
-      if(evalScore < beta) beta = evalScore;
-      if(beta <= alpha) break;
-    }
-    return minEval;
-  }
-}
-
-// Botの手を決めて実行
-function botMove() {
-  if(!hasAnyValidMove(2)) {
-    if(!hasAnyValidMove(1)) {
-      gameOver();
-      return;
-    }
-    currentPlayer = 1;
-    updateStatus('あなたの番（黒） - Botはパスしました');
-    return;
-  }
-
-  const difficulty = botStrengthSelect.value;
-  let maxDepth;
-  switch(difficulty) {
-    case 'weak': maxDepth = 2; break;
-    case 'normal': maxDepth = 4; break;
-    case 'strong': maxDepth = 6; break;
-    default: maxDepth = 4;
-  }
-
-  let bestMove = null;
-  let bestScore = -Infinity;
-
-  for(let y=0; y<BOARD_SIZE; y++) {
-    for(let x=0; x<BOARD_SIZE; x++) {
-      if(canPutStone(x, y, 2)) {
-        const testBoard = board.map(row => row.slice());
-        putStone(x, y, 2, testBoard);
-        const score = minimax(testBoard, 1, 1, maxDepth, -Infinity, Infinity);
-        if(score > bestScore) {
-          bestScore = score;
-          bestMove = [x, y];
-        }
-      }
+    currentPlayer = (currentPlayer === BLACK) ? WHITE : BLACK;
+    if(getValidMoves(currentPlayer, board).length === 0) {
+      // 両者パスでゲーム終了
+      alert('ゲーム終了！');
+      return false;
     }
   }
-
-  if(bestMove) {
-    putStone(bestMove[0], bestMove[1], 2);
-    currentPlayer = 1;
-    updateStatus('あなたの番（黒）');
-  } else {
-    currentPlayer = 1;
-    updateStatus('あなたの番（黒） - Botはパスしました');
-  }
-  drawBoard();
-  updateScore();
+  return true;
 }
 
-// ゲーム終了判定
-function gameOver() {
-  const counts = countStones();
-  let resultText = 'ゲーム終了！ ';
-  if(counts.black > counts.white) resultText += 'あなたの勝ち！';
-  else if(counts.black < counts.white) resultText += 'Botの勝ち！';
-  else resultText += '引き分けです。';
-  updateStatus(resultText);
-}
-
-// スコア表示更新
-function updateScore() {
-  const counts = countStones();
-  scoreDiv.textContent = `黒: ${counts.black} - 白: ${counts.white}`;
-}
-
-// 状態表示更新
-function updateStatus(text) {
-  statusDiv.textContent = text;
-}
-
-// クリック・タッチ処理
-function handleClick(x, y) {
-  if(currentPlayer !== 1) return;
-  if(!canPutStone(x, y, 1)) return;
-
-  putStone(x, y, 1);
-  currentPlayer = 2;
-  drawBoard();
-  updateScore();
-
-  if(!hasAnyValidMove(2)) {
-    if(!hasAnyValidMove(1)) {
-      gameOver();
-      return;
-    }
-    currentPlayer = 1;
-    updateStatus('あなたの番（黒） - Botはパスしました');
-  } else {
-    updateStatus('Botの番（白）');
-    setTimeout(botMove, 100); // 少し遅らせてBotの手
-  }
-}
-
+// プレイヤーのクリック処理
 canvas.addEventListener('click', (e) => {
-  if(currentPlayer !== 1) return;
+  if(currentPlayer !== BLACK) return; // プレイヤー以外は無効
 
   const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / (rect.width / BOARD_SIZE));
-  const y = Math.floor((e.clientY - rect.top) / (rect.height / BOARD_SIZE));
-  handleClick(x, y);
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const x = Math.floor(mx / CELL_SIZE);
+  const y = Math.floor(my / CELL_SIZE);
+
+  if(!canPlace(x, y, BLACK, board)) return;
+
+  placeStone(x, y, BLACK, board);
+  drawBoard();
+
+  if(!nextTurn()) return; // ゲーム終了
+
+  // Botのターンを少し遅らせる（描画が先になるように）
+  setTimeout(botTurn, 300);
 });
 
-canvas.addEventListener('touchstart', (e) => {
-  e.preventDefault
+// Bot（白）のターン
+function botTurn() {
+  if(currentPlayer !== WHITE) return;
+
+  const depth = 4; // 探索深さ（ここを調整でBotの強さ変更）
+
+  const result = minimax(board, 0, depth, WHITE, -Infinity, Infinity);
+  if(result.move) {
+    placeStone(result.move.x, result.move.y, WHITE, board);
+  }
+  drawBoard();
+
+  if(!nextTurn()) return; // ゲーム終了
+}
+
+initBoard();
+drawBoard();
