@@ -3,9 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <title>オセロ</title>
-<link rel="manifest" href="manifest.json" />
-<link rel="icon" href="icons/favicon-16x16.png" sizes="16x16" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/favicon-16x16.png" sizes="16x16" type="image/png" />
   <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+    }
+    #board {
+      border: 2px solid #000;
+      margin: 10px auto;
+      display: block;
+      cursor: pointer;
+      background-color: #008000;
+    }
+    #status, #score {
+      margin-top: 10px;
+      font-size: 1.2em;
+    }
+  </style>
 </head>
 <body>
   <h1>オセロ</h1>
