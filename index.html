@@ -1,20 +1,28 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>オセロ</title>
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <title>オセロ</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <h1>オセロ</h1>
 
-<h1>オセロ Bot戦</h1>
-<p>あなた: 黒 (先手) ／ Bot: 白</p>
-<div id="game-container">
-  <table id="board"></table>
-  <p id="status"></p>
-</div>
+  <div>
+    <label>強さ: 
+      <select id="strengthSelect">
+        <option value="weak">よわい</option>
+        <option value="normal" selected>ふつう</option>
+        <option value="strong">つよい</option>
+      </select>
+    </label>
+  </div>
 
-<script src="script.js"></script>
+  <canvas id="board" width="400" height="400"></canvas>
+
+  <div id="status"></div>
+  <div id="score"></div>
+
+  <script src="othello.js"></script>
 </body>
 </html>
