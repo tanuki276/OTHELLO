@@ -52,11 +52,7 @@ function drawBoard() {
 function drawStone(x, y, player) {
   ctx.beginPath();
   ctx.arc(x*CELL_SIZE + CELL_SIZE/2, y*CELL_SIZE + CELL_SIZE/2, CELL_SIZE/2 - 5, 0, Math.PI*2);
-  if(player === 1) {
-    ctx.fillStyle = 'black';
-  } else {
-    ctx.fillStyle = 'white';
-  }
+  ctx.fillStyle = player === 1 ? 'black' : 'white';
   ctx.fill();
   ctx.strokeStyle = 'black';
   ctx.stroke();
@@ -231,7 +227,6 @@ function botMove() {
     currentPlayer = 1;
     updateStatus('あなたの番（黒）');
   } else {
-    // 置ける手がない（パス）
     currentPlayer = 1;
     updateStatus('あなたの番（黒） - Botはパスしました');
   }
@@ -260,37 +255,37 @@ function updateStatus(text) {
   statusDiv.textContent = text;
 }
 
-// クリック処理
+// クリック・タッチ処理
+function handleClick(x, y) {
+  if(currentPlayer !== 1) return;
+  if(!canPutStone(x, y, 1)) return;
+
+  putStone(x, y, 1);
+  currentPlayer = 2;
+  drawBoard();
+  updateScore();
+
+  if(!hasAnyValidMove(2)) {
+    if(!hasAnyValidMove(1)) {
+      gameOver();
+      return;
+    }
+    currentPlayer = 1;
+    updateStatus('あなたの番（黒） - Botはパスしました');
+  } else {
+    updateStatus('Botの番（白）');
+    setTimeout(botMove, 100); // 少し遅らせてBotの手
+  }
+}
+
 canvas.addEventListener('click', (e) => {
-  if(currentPlayer !== 1) return; // 人間のターンのみ受付
-
-canvas.addEventListener("touchstart", function (event) {
-  event.preventDefault();
-
-  const rect = 
-canvas.addEventListener("touchstart", function (event) {
-  event.preventDefault();
-
-  if (currentPlayer !== 1) return; // 人間のターンのみ受付
+  if(currentPlayer !== 1) return;
 
   const rect = canvas.getBoundingClientRect();
-  const touch = event.touches[0];
-
-  const x = Math.floor((touch.clientX - rect.left) / (rect.width / BOARD_SIZE));
-  const y = Math.floor((touch.clientY - rect.top) / (rect.height / BOARD_SIZE));
-
+  const x = Math.floor((e.clientX - rect.left) / (rect.width / BOARD_SIZE));
+  const y = Math.floor((e.clientY - rect.top) / (rect.height / BOARD_SIZE));
   handleClick(x, y);
 });
 
-// ゲームリセット
-function resetGame() {
-  initBoard();
-  currentPlayer = 1;
-  updateStatus('あなたの番（黒）');
-  updateScore();
-  drawBoard();
-}
-
-resetGame();
-
-resetGame();
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault
