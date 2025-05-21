@@ -260,59 +260,5 @@ function botTurn() {
   if(result.move) {
     placeStone(result.move.x, result.move.y, WHITE, board);
   }
-  drawBoard();
-
-  if(!nextTurn()) return; // ゲーム終了
-}
-// 盤面のサイズ
-const BOARD_SIZE = 8;
-
-// 盤面配列（0:空, 1:黒, 2:白）
-let board = [];
-
-// 現在のプレイヤー（1=黒, 2=白）
-let currentPlayer = 1;
-
-// 盤面初期化
-function initBoard() {
-  board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(0));
-  // 初期の4つの石
-  board[3][3] = 2;
-  board[3][4] = 1;
-  board[4][3] = 1;
-  board[4][4] = 2;
-}
-
-// 盤面描画（例としてコンソール出力）
-function drawBoard() {
-  // ここはcanvas描画処理に置き換えてね
-  console.clear();
-  console.log(board.map(row => row.map(cell => cell === 0 ? '.' : (cell === 1 ? '●' : '○')).join(' ')).join('\n'));
-}
-
-// スコア更新（適宜実装）
-function updateScore() {
-  // ここにスコア計算と表示更新の処理を書く
-}
-
-// ステータス表示更新（適宜実装）
-function updateStatus(message) {
-  const statusDiv = document.getElementById('status');
-  if (statusDiv) statusDiv.textContent = message;
-}
-
-// リセット関数
-function resetGame() {
-  initBoard();
-  currentPlayer = 1; // 黒スタート
-  updateScore();
-  updateStatus('ゲームを開始してください');
-  drawBoard();
-}
-
-// ページ読み込み時に初期化
-window.onload = () => {
-  resetGame();
-};
 initBoard();
 drawBoard();
