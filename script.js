@@ -4,8 +4,8 @@ const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const BOARD_SIZE = 8;
 
-canvas.width = 750;
-canvas.height = 750;
+canvas.width = 810;
+canvas.height = 810;
 
 const CELL_SIZE = canvas.width / BOARD_SIZE;
 
