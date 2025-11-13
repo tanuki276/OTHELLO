@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="it">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>オセロ</title>
+  <title>Othello</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="manifest" href="/manifest.json" />
 
@@ -14,24 +14,27 @@
   <meta name="theme-color" content="#004d00" />
 </head>
 <body>
-  <h1>オセロ</h1>
+  <h1>Othello</h1>
   <canvas id="board" width="810" height="810"></canvas>
   <div>
-    難易度:
+    Difficoltà:
     <select id="botStrength">
-      <option value="2">よわい</option> <option value="4" selected>ふつう</option> <option value="6">つよい</option> </select>
+      <option value="2">Debole</option>
+      <option value="4" selected>Normale</option>
+      <option value="6">Forte</option>
+    </select>
   </div>
-  <button onclick="resetGame()">ゲームリセット</button>
-  <div id="status">オセロ</div>
+  <button onclick="resetGame()">Resetta il gioco</button>
+  <div id="status">Othello</div>
   <div id="score"></div>
 
   <script src="script.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(() => {
-        console.log('Service Worker 登録成功');
+        console.log('Registrazione Service Worker riuscita');
       }).catch(err => {
-        console.error('Service Worker 登録失敗:', err);
+        console.error('Registrazione Service Worker fallita:', err);
       });
     }
   </script>
