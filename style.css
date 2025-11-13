@@ -4,7 +4,7 @@ body {
     color: #333;
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* 画面上部に寄せる */
+    align-items: flex-start;
     padding: 20px;
     margin: 0;
     min-height: 100vh;
@@ -27,8 +27,8 @@ h1 {
 
 #board {
     border: 5px solid #000;
-    box-sizing: content-box; /* paddingやborderがwidth/heightに含まれないように */
-    max-width: 90vw; /* モバイル対応 */
+    box-sizing: content-box;
+    max-width: 90vw; 
     height: auto;
     display: block;
     margin-bottom: 20px;
@@ -63,7 +63,7 @@ button:hover {
 .status-message {
     font-size: 1.2em;
     font-weight: bold;
-    color: #cc0000; /* 注意を引く色 */
+    color: #cc0000;
     margin-bottom: 15px;
     text-align: center;
 }
