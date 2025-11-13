@@ -2,38 +2,30 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>オセロ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>オセロ ゲーム</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="manifest" href="/manifest.json" />
-
-  <link rel="icon" type="image/png" sizes="192x192" href="android-icon-192x192.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
-  <link rel="apple-touch-icon" href="android-icon-192x192.png" />
-
-  <meta name="theme-color" content="#004d00" />
 </head>
 <body>
-  <h1>オセロ</h1>
-  <canvas id="board" width="810" height="810"></canvas>
-  <div>
-    難易度:
-    <select id="botStrength">
-      <option value="2">よわい</option> <option value="4" selected>ふつう</option> <option value="6">つよい</option> </select>
+  <div class="container">
+    <h1>オセロ</h1>
+    
+    <canvas id="board" width="810" height="810"></canvas>
+    
+    <div class="controls">
+      <label for="botStrength">難易度:</label>
+      <select id="botStrength">
+        <option value="2">よわい</option> 
+        <option value="4" selected>ふつう</option> 
+        <option value="6">つよい</option> 
+      </select>
+      <button onclick="resetGame()">ゲームリセット</button>
+    </div>
+    
+    <div id="status" class="status-message">ゲーム開始</div>
+    <div id="score" class="score-board"></div>
   </div>
-  <button onclick="resetGame()">ゲームリセット</button>
-  <div id="status">オセロ</div>
-  <div id="score"></div>
 
   <script src="script.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(() => {
-        console.log('Service Worker 登録成功');
-      }).catch(err => {
-        console.error('Service Worker 登録失敗:', err);
-      });
-    }
-  </script>
 </body>
 </html>
