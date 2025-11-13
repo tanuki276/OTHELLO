@@ -14,11 +14,104 @@ const WHITE = 2; // Bot (White)
 
 let board = [];
 let currentPlayer = BLACK; // Game starts with Black
-let passCount = 0; 
+let passCount = 0;
 
 const botStrengthSelect = document.getElementById('botStrength');
 const statusDiv = document.getElementById('status');
 const scoreDiv = document.getElementById('score');
+
+// ==========================================================
+// 🔊 Web Audio API セットアップ
+// ==========================================================
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioContext = new AudioContext();
+
+// ユーザー操作でAudioContextを再開するためのフラグ
+let audioContextResumed = false;
+
+/**
+ * AudioContextを再開（Resume）する関数。
+ * ブラウザの自動再生制限を回避するため、最初のユーザー操作時に呼び出されます。
+ */
+function resumeAudioContext() {
+    if (audioContext.state === 'suspended' && !audioContextResumed) {
+        audioContext.resume().then(() => {
+            console.log('AudioContext resumed.');
+            audioContextResumed = true;
+        }).catch(err => {
+            console.error('Failed to resume AudioContext:', err);
+        });
+    }
+}
+
+// ユーザーの最初の操作（キャンバスクリック、リセットボタンクリック）で
+// audioContext.resume()が実行されるようにします。
+canvas.addEventListener('click', resumeAudioContext, { once: true });
+document.querySelector('button[onclick="resetGame()"]').addEventListener('click', resumeAudioContext, { once: true });
+
+
+/**
+ * 石を置く/裏返す音を再生する関数 (短いクリック音)
+ */
+function playPlaceSound(frequency = 880, duration = 0.05) {
+    if (audioContext.state === 'suspended' || !audioContextResumed) return;
+
+    const osc = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    const now = audioContext.currentTime;
+
+    osc.type = 'square'; // 矩形波
+    osc.frequency.setValueAtTime(frequency, now);
+
+    // クリック感のある短い音量エンベロープ
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(0.3, now + 0.001); // 瞬間的に立ち上げ
+    gainNode.gain.linearRampToValueAtTime(0, now + duration); // 素早く減衰
+
+    osc.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    osc.start(now);
+    osc.stop(now + duration);
+}
+
+/**
+ * ゲーム終了の音を再生する関数 (勝利/敗北)
+ */
+function playGameOverSound(isWin) {
+    if (audioContext.state === 'suspended' || !audioContextResumed) return;
+
+    const osc = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    const now = audioContext.currentTime;
+    const duration = 0.8;
+
+    // 勝利: 高いドミソの和音をイメージした上昇音
+    // 敗北/引き分け: 低い音
+    const startFreq = isWin ? 523.25 : 200; // C5 or low tone
+    const endFreq = isWin ? 783.99 : 180; // G5 or even lower
+
+    osc.type = 'triangle'; // 三角波
+
+    // 周波数スイープ (音程の変化)
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.linearRampToValueAtTime(endFreq, now + duration);
+
+    // 音量エンベロープ
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(0.5, now + 0.1);
+    gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+    osc.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    osc.start(now);
+    osc.stop(now + duration);
+}
+
+// ==========================================================
+// ♟️ ゲームロジック
+// ==========================================================
 
 /**
  * Initializes the game board to the starting state.
@@ -36,7 +129,7 @@ function initBoard() {
     board[3][4] = BLACK;
     board[4][3] = BLACK;
     board[4][4] = WHITE;
-    passCount = 0; 
+    passCount = 0;
 }
 
 // Direction vectors (8 directions)
@@ -105,7 +198,7 @@ function placeStone(x, y, player, boardState, executeFlip = false) {
     if (executeFlip) {
         boardState[y][x] = player;
     }
-    
+
     const opponent = (player === BLACK) ? WHITE : BLACK;
     const allStonesToFlip = [];
 
@@ -124,7 +217,7 @@ function placeStone(x, y, player, boardState, executeFlip = false) {
         // Check if sandwiched by the current player's stone
         if (stonesToFlip.length > 0 && inBoard(nx, ny) && boardState[ny][nx] === player) {
             allStonesToFlip.push(...stonesToFlip);
-            
+
             // executeFlipがtrueのときだけ、実際に裏返し処理を行う
             if (executeFlip) {
                 for (let pos of stonesToFlip) {
@@ -173,10 +266,10 @@ function evaluateBoard(boardState) {
     }
 
     const counts = countStones(boardState);
-    const stoneDiffWeight = 1; 
+    const stoneDiffWeight = 1;
     const stoneDiff = counts.white - counts.black;
 
-    return (whiteScore - blackScore) + (stoneDiff * stoneDiffWeight); 
+    return (whiteScore - blackScore) + (stoneDiff * stoneDiffWeight);
 }
 
 /**
@@ -205,15 +298,15 @@ function minimax(boardState, depth, maxDepth, player, alpha, beta) {
         for (let move of validMoves) {
             let newBoard = copyBoard(boardState);
             // 修正: placeStone(..., executeFlip=true) で盤面を更新
-            placeStone(move.x, move.y, player, newBoard, true); 
+            placeStone(move.x, move.y, player, newBoard, true);
             // Increase depth after a move is made
             let evalRes = minimax(newBoard, depth + 1, maxDepth, opponent, alpha, beta);
             if (evalRes.score > maxEval) {
                 maxEval = evalRes.score;
-                bestMove = move; 
+                bestMove = move;
             }
             alpha = Math.max(alpha, evalRes.score);
-            if (beta <= alpha) break; 
+            if (beta <= alpha) break;
         }
         return { score: maxEval, move: bestMove };
     } else { // Player (minimizer)
@@ -221,14 +314,14 @@ function minimax(boardState, depth, maxDepth, player, alpha, beta) {
         for (let move of validMoves) {
             let newBoard = copyBoard(boardState);
             // 修正: placeStone(..., executeFlip=true) で盤面を更新
-            placeStone(move.x, move.y, player, newBoard, true); 
+            placeStone(move.x, move.y, player, newBoard, true);
             // Increase depth after a move is made
             let evalRes = minimax(newBoard, depth + 1, maxDepth, opponent, alpha, beta);
             minEval = Math.min(minEval, evalRes.score);
             beta = Math.min(beta, evalRes.score);
-            if (beta <= alpha) break; 
+            if (beta <= alpha) break;
         }
-        return { score: minEval }; 
+        return { score: minEval };
     }
 }
 
@@ -237,7 +330,7 @@ function minimax(boardState, depth, maxDepth, player, alpha, beta) {
  */
 function drawBoard(highlightedFlips = []) {
     // Draw background
-    ctx.fillStyle = '#006400'; 
+    ctx.fillStyle = '#006400';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw grid lines
@@ -272,9 +365,9 @@ function drawBoard(highlightedFlips = []) {
             }
 
             ctx.beginPath();
-            const cx = x * CELL_SIZE + CELL_SIZE / 2; 
-            const cy = y * CELL_SIZE + CELL_SIZE / 2; 
-            const radius = CELL_SIZE / 2 - 5; 
+            const cx = x * CELL_SIZE + CELL_SIZE / 2;
+            const cy = y * CELL_SIZE + CELL_SIZE / 2;
+            const radius = CELL_SIZE / 2 - 5;
 
             ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
 
@@ -283,7 +376,7 @@ function drawBoard(highlightedFlips = []) {
                 ctx.strokeStyle = 'red';
                 ctx.lineWidth = 4;
             } else {
-                ctx.strokeStyle = '#000'; 
+                ctx.strokeStyle = '#000';
                 ctx.lineWidth = 1;
             }
 
@@ -296,7 +389,7 @@ function drawBoard(highlightedFlips = []) {
             ctx.stroke();
         }
     }
-    updateScore(); 
+    updateScore();
 }
 
 /**
@@ -327,49 +420,55 @@ function updateScore() {
  */
 function animateFlips(x, y, player, stonesToFlip) {
     const FLIP_DURATION_MS = 150; // 裏返すアニメーションの間隔
-    
+
     // 1. まず配置する石を描画
     board[y][x] = player;
     drawBoard(stonesToFlip); // 裏返す石をハイライトして描画
-    
+
+    // 【✅ 効果音】石を置いた直後に音を鳴らす (黒:高め, 白:低め)
+    playPlaceSound(player === BLACK ? 700 : 500);
+
     // 2. 裏返す処理を非同期で実行
     let flipIndex = 0;
     function flipNextStone() {
         if (flipIndex < stonesToFlip.length) {
             const pos = stonesToFlip[flipIndex];
             board[pos.y][pos.x] = player; // 石を裏返す
-            
+
+            // 【✅ 効果音】裏返すたびに音を鳴らす
+            playPlaceSound(1000 + flipIndex * 50, FLIP_DURATION_MS / 1000);
+
             // 裏返した後の状態を描画 (次の石のハイライトのため、裏返す石リストを渡す)
-            drawBoard(stonesToFlip.slice(flipIndex + 1)); 
-            
+            drawBoard(stonesToFlip.slice(flipIndex + 1));
+
             flipIndex++;
             setTimeout(flipNextStone, FLIP_DURATION_MS); // 次の石を裏返す
         } else {
             // 3. 全ての裏返しが完了した後、次のターンの処理へ
             currentPlayer = (player === BLACK) ? WHITE : BLACK;
             updateGameStatus();
-            
+
             // Botのターンであれば、引き続きBotの処理を呼び出す
             if (currentPlayer === WHITE) {
                 setTimeout(botTurn, 300);
             }
         }
     }
-    
+
     // アニメーション開始
-    setTimeout(flipNextStone, FLIP_DURATION_MS); 
+    setTimeout(flipNextStone, FLIP_DURATION_MS);
 }
 
 /**
  * Updates the game status, handles turn switching, passing, and game over checks.
  */
 function updateGameStatus() {
-    const playerMoves = getValidMoves(BLACK, board); 
-    const botMoves = getValidMoves(WHITE, board);   
+    const playerMoves = getValidMoves(BLACK, board);
+    const botMoves = getValidMoves(WHITE, board);
 
     // Game Over Conditions: 1. No valid moves for both players OR 2. Board is full
     if (
-        (playerMoves.length === 0 && botMoves.length === 0) || 
+        (playerMoves.length === 0 && botMoves.length === 0) ||
         (countStones().black + countStones().white === BOARD_SIZE * BOARD_SIZE)
     ) {
         gameOver();
@@ -377,24 +476,24 @@ function updateGameStatus() {
     }
 
     // Note: BotTurnはanimateFlipsから呼び出されるため、ここでは純粋なパス判定とステータス更新のみ
-    if (currentPlayer === BLACK) { 
+    if (currentPlayer === BLACK) {
         if (playerMoves.length === 0) {
             statusDiv.textContent = 'Black (You) Pass! White (Bot) Turn.';
-            currentPlayer = WHITE; 
+            currentPlayer = WHITE;
             passCount++;
             setTimeout(botTurn, 800); // パス後のBotターン呼び出し
         } else {
             statusDiv.textContent = 'Your Turn (Black)';
-            passCount = 0; 
+            passCount = 0;
         }
     } else { // Bot's Turn (currentPlayer === WHITE)
         if (botMoves.length === 0) {
             statusDiv.textContent = 'White (Bot) Pass! Your Turn (Black).';
-            currentPlayer = BLACK; 
+            currentPlayer = BLACK;
             passCount++;
         } else {
             statusDiv.textContent = 'Bot\'s Turn (White)';
-            passCount = 0; 
+            passCount = 0;
         }
     }
     drawBoard(); // drawBoard(highlightedFlips)のデフォルト引数により、引数なしで呼び出す
@@ -406,28 +505,41 @@ function updateGameStatus() {
 function gameOver() {
     const counts = countStones();
     let resultText = 'Game Over! ';
-    if (counts.black > counts.white) resultText += 'You Win!';
-    else if (counts.black < counts.white) resultText += 'Bot Wins!';
-    else resultText += 'It\'s a Draw.';
+    let isWin = false;
+
+    if (counts.black > counts.white) {
+        resultText += 'You Win!';
+        isWin = true;
+    } else if (counts.black < counts.white) {
+        resultText += 'Bot Wins!';
+        isWin = false;
+    } else {
+        resultText += 'It\'s a Draw.';
+        isWin = false;
+    }
     statusDiv.textContent = resultText;
+
+    // 【✅ 効果音】ゲーム終了音を鳴らす
+    playGameOverSound(isWin);
+
     // Disable click events after game over
-    canvas.removeEventListener('click', handleCanvasClick); 
+    canvas.removeEventListener('click', handleCanvasClick);
 }
 
 /**
  * Handles the player's click event.
  */
 function handleCanvasClick(e) {
-    if (currentPlayer !== BLACK) return; 
+    if (currentPlayer !== BLACK) return;
 
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left; 
-    const my = e.clientY - rect.top;  
-    const x = Math.floor(mx / CELL_SIZE); 
-    const y = Math.floor(my / CELL_SIZE); 
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const x = Math.floor(mx / CELL_SIZE);
+    const y = Math.floor(my / CELL_SIZE);
 
     // placeStoneで裏返す石のリストを取得 (executeFlip=false)
-    const stonesToFlip = placeStone(x, y, BLACK, board, false); 
+    const stonesToFlip = placeStone(x, y, BLACK, board, false);
 
     // 有効な手であり、裏返す石がある場合
     if (canPlace(x, y, BLACK, board) && stonesToFlip.length > 0) {
@@ -444,25 +556,25 @@ canvas.addEventListener('click', handleCanvasClick);
  * Handles the Bot's turn logic (AI).
  */
 function botTurn() {
-    if (currentPlayer !== WHITE) return; 
+    if (currentPlayer !== WHITE) return;
 
-    const depth = parseInt(botStrengthSelect.value, 10); 
+    const depth = parseInt(botStrengthSelect.value, 10);
 
     // Search for the best move using Minimax
     const result = minimax(board, 0, depth, WHITE, -Infinity, Infinity);
 
     if (result.move) {
         const move = result.move;
-        
+
         // placeStoneで裏返す石のリストを取得 (executeFlip=false)
-        const stonesToFlip = placeStone(move.x, move.y, WHITE, board, false); 
-        
+        const stonesToFlip = placeStone(move.x, move.y, WHITE, board, false);
+
         // Botの移動もアニメーションで実行
         // animateFlips内でcurrentPlayer = BLACK; updateGameStatus()が実行される
         animateFlips(move.x, move.y, WHITE, stonesToFlip);
     } else {
         // If no valid move, updateGameStatus handles the pass
-        updateGameStatus(); 
+        updateGameStatus();
     }
 }
 
@@ -470,11 +582,11 @@ function botTurn() {
  * Fully resets the game.
  */
 function resetGame() {
-    initBoard(); 
-    currentPlayer = BLACK; 
-    canvas.addEventListener('click', handleCanvasClick); 
-    updateGameStatus(); 
-    drawBoard(); 
+    initBoard();
+    currentPlayer = BLACK;
+    canvas.addEventListener('click', handleCanvasClick);
+    updateGameStatus();
+    drawBoard();
 }
 
 // Initialize the game on load
