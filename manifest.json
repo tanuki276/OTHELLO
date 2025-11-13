@@ -1,6 +1,6 @@
 {
-  "name": "オセロ",
-  "short_name": "オセロ",
+  "name": "OTHELLO",
+  "short_name": "OTHELLO",
   "start_url": "https://othello-five-sable.vercel.app/",
   "display": "standalone",
   "background_color": "#1e2a1e",
