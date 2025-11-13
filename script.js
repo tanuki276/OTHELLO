@@ -1,4 +1,4 @@
-Const canvas = document.getElementById('board');
+const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 
 // Apply the display size set in CSS to the drawing resolution.
@@ -15,7 +15,6 @@ const WHITE = 2; // Bot (White)
 let board = [];
 let currentPlayer = BLACK; // Game starts with Black
 let passCount = 0; 
-let isProcessing = false; // 【追加】処理ロックフラグ
 
 const botStrengthSelect = document.getElementById('botStrength');
 const statusDiv = document.getElementById('status');
@@ -101,7 +100,7 @@ function getValidMoves(player, boardState) {
  * Places a stone at (x, y) and returns the list of opponent's stones to be flipped.
  * executeFlipがtrueのときだけ実際に盤面を更新します。
  */
-function placeStone(x, y, player, boardState, executeFlip = true) { // 【修正】デフォルト引数追加
+function placeStone(x, y, player, boardState, executeFlip = false) {
     // executeFlipがtrueのときだけ配置する石をセット
     if (executeFlip) {
         boardState[y][x] = player;
@@ -134,7 +133,7 @@ function placeStone(x, y, player, boardState, executeFlip = true) { // 【修正
             }
         }
     }
-    return allStonesToFlip; // 【修正】裏返す石のリストを返す
+    return allStonesToFlip; // 裏返す石のリストを返す
 }
 
 /**
@@ -205,7 +204,8 @@ function minimax(boardState, depth, maxDepth, player, alpha, beta) {
         let bestMove = null;
         for (let move of validMoves) {
             let newBoard = copyBoard(boardState);
-            placeStone(move.x, move.y, player, newBoard);
+            // 修正: placeStone(..., executeFlip=true) で盤面を更新
+            placeStone(move.x, move.y, player, newBoard, true); 
             // Increase depth after a move is made
             let evalRes = minimax(newBoard, depth + 1, maxDepth, opponent, alpha, beta);
             if (evalRes.score > maxEval) {
@@ -220,7 +220,8 @@ function minimax(boardState, depth, maxDepth, player, alpha, beta) {
         let minEval = Infinity;
         for (let move of validMoves) {
             let newBoard = copyBoard(boardState);
-            placeStone(move.x, move.y, player, newBoard);
+            // 修正: placeStone(..., executeFlip=true) で盤面を更新
+            placeStone(move.x, move.y, player, newBoard, true); 
             // Increase depth after a move is made
             let evalRes = minimax(newBoard, depth + 1, maxDepth, opponent, alpha, beta);
             minEval = Math.min(minEval, evalRes.score);
@@ -232,9 +233,9 @@ function minimax(boardState, depth, maxDepth, player, alpha, beta) {
 }
 
 /**
- * Draws the board and stones, including flip highlights.
+ * Draws the board and stones, including valid move highlights and flip highlights.
  */
-function drawBoard(highlightedFlips = []) { // 【修正】引数追加
+function drawBoard(highlightedFlips = []) {
     // Draw background
     ctx.fillStyle = '#006400'; 
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -258,9 +259,17 @@ function drawBoard(highlightedFlips = []) { // 【修正】引数追加
     for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
             const stone = board[y][x];
-            const isFlipping = highlightedFlips.some(p => p.x === x && p.y === y); // 【追加】裏返し中の石かをチェック
+            // 裏返し中の石かをチェック
+            const isFlipping = highlightedFlips.some(p => p.x === x && p.y === y);
 
-            if (stone === EMPTY) continue;
+            if (stone === EMPTY) {
+                // 有効な手のハイライト
+                if (currentPlayer === BLACK && getValidMoves(BLACK, board).some(m => m.x === x && m.y === y)) {
+                    ctx.fillStyle = 'rgba(255, 255, 0, 0.4)'; // 黄色半透明
+                    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                }
+                continue;
+            }
 
             ctx.beginPath();
             const cx = x * CELL_SIZE + CELL_SIZE / 2; 
@@ -269,7 +278,7 @@ function drawBoard(highlightedFlips = []) { // 【修正】引数追加
 
             ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
 
-            // 【追加】裏返し中の石は一時的に赤くハイライト
+            // 裏返し中の石は一時的に赤くハイライト
             if (isFlipping) {
                 ctx.strokeStyle = 'red';
                 ctx.lineWidth = 4;
@@ -278,7 +287,7 @@ function drawBoard(highlightedFlips = []) { // 【修正】引数追加
                 ctx.lineWidth = 1;
             }
 
-            if (board[y][x] === BLACK) {
+            if (stone === BLACK) {
                 ctx.fillStyle = '#000'; // Black stone
             } else {
                 ctx.fillStyle = '#fff'; // White stone
@@ -314,14 +323,15 @@ function updateScore() {
 
 /**
  * アニメーションを伴って石を配置・裏返します。
+ * この関数がcurrentPlayerの切り替えと次のターン処理を行います。
  */
-function animateFlips(x, y, player, stonesToFlip) { // 【追加】
+function animateFlips(x, y, player, stonesToFlip) {
     const FLIP_DURATION_MS = 150; // 裏返すアニメーションの間隔
     
-    // 1. 配置する石を描画 (アニメーション開始)
+    // 1. まず配置する石を描画
     board[y][x] = player;
-    drawBoard(stonesToFlip); 
-
+    drawBoard(stonesToFlip); // 裏返す石をハイライトして描画
+    
     // 2. 裏返す処理を非同期で実行
     let flipIndex = 0;
     function flipNextStone() {
@@ -335,8 +345,7 @@ function animateFlips(x, y, player, stonesToFlip) { // 【追加】
             flipIndex++;
             setTimeout(flipNextStone, FLIP_DURATION_MS); // 次の石を裏返す
         } else {
-            // 3. 全ての裏返しが完了した後、ロックを解除し、次のターンの処理へ
-            isProcessing = false; // 【重要】ロック解除
+            // 3. 全ての裏返しが完了した後、次のターンの処理へ
             currentPlayer = (player === BLACK) ? WHITE : BLACK;
             updateGameStatus();
             
@@ -367,12 +376,13 @@ function updateGameStatus() {
         return;
     }
 
+    // Note: BotTurnはanimateFlipsから呼び出されるため、ここでは純粋なパス判定とステータス更新のみ
     if (currentPlayer === BLACK) { 
         if (playerMoves.length === 0) {
             statusDiv.textContent = 'Black (You) Pass! White (Bot) Turn.';
             currentPlayer = WHITE; 
             passCount++;
-            setTimeout(botTurn, 800); 
+            setTimeout(botTurn, 800); // パス後のBotターン呼び出し
         } else {
             statusDiv.textContent = 'Your Turn (Black)';
             passCount = 0; 
@@ -387,7 +397,7 @@ function updateGameStatus() {
             passCount = 0; 
         }
     }
-    drawBoard(); 
+    drawBoard(); // drawBoard(highlightedFlips)のデフォルト引数により、引数なしで呼び出す
 }
 
 /**
@@ -408,7 +418,7 @@ function gameOver() {
  * Handles the player's click event.
  */
 function handleCanvasClick(e) {
-    if (currentPlayer !== BLACK || isProcessing) return; // 【修正】ロック中は無視
+    if (currentPlayer !== BLACK) return; 
 
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left; 
@@ -416,12 +426,13 @@ function handleCanvasClick(e) {
     const x = Math.floor(mx / CELL_SIZE); 
     const y = Math.floor(my / CELL_SIZE); 
 
-    // 【修正】裏返す石のリストを取得 (executeFlip=false)
+    // placeStoneで裏返す石のリストを取得 (executeFlip=false)
     const stonesToFlip = placeStone(x, y, BLACK, board, false); 
 
+    // 有効な手であり、裏返す石がある場合
     if (canPlace(x, y, BLACK, board) && stonesToFlip.length > 0) {
-        isProcessing = true; // 【追加】処理開始時にロック
         // placeStoneとターン切り替えの代わりにアニメーション関数を呼び出す
+        // animateFlips内でcurrentPlayer = WHITE; updateGameStatus(); setTimeout(botTurn, 300)が実行される
         animateFlips(x, y, BLACK, stonesToFlip);
     } else {
         statusDiv.textContent = 'Invalid move! Your Turn (Black)';
@@ -433,7 +444,7 @@ canvas.addEventListener('click', handleCanvasClick);
  * Handles the Bot's turn logic (AI).
  */
 function botTurn() {
-    if (currentPlayer !== WHITE || isProcessing) return; // 【修正】ロック中は無視
+    if (currentPlayer !== WHITE) return; 
 
     const depth = parseInt(botStrengthSelect.value, 10); 
 
@@ -443,11 +454,11 @@ function botTurn() {
     if (result.move) {
         const move = result.move;
         
-        // 【修正】裏返す石のリストを取得 (executeFlip=false)
+        // placeStoneで裏返す石のリストを取得 (executeFlip=false)
         const stonesToFlip = placeStone(move.x, move.y, WHITE, board, false); 
-
-        isProcessing = true; // 【追加】処理開始時にロック
-        // placeStoneとターン切り替えの代わりにアニメーション関数を呼び出す
+        
+        // Botの移動もアニメーションで実行
+        // animateFlips内でcurrentPlayer = BLACK; updateGameStatus()が実行される
         animateFlips(move.x, move.y, WHITE, stonesToFlip);
     } else {
         // If no valid move, updateGameStatus handles the pass
